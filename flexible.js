@@ -1,38 +1,50 @@
-/**
- * 可伸缩布局方案
- * rem计算方式：设计图尺寸px / 100 = 实际rem  例: 100px = 1rem
- */
-!function (window) {
 
-    /* 设计图文档宽度 */
-    var docWidth = 750;
+(function flexible(window, document) {
+  var docEl = document.documentElement;
+  // 获取当前显示设备的物理像素分辨率与CSS像素分辨率之比;
+  var dpr = window.devicePixelRatio || 1;
 
-    var doc = window.document,
-        docEl = doc.documentElement,
-        resizeEvt = 'orientationchange' in window ? 'orientationchange' : 'resize';
-
-    var recalc = (function refreshRem () {
-        var clientWidth = docEl.getBoundingClientRect().width;
-
-        /* 8.55：小于320px不再缩小，11.2：大于420px不再放大 */
-        docEl.style.fontSize = Math.max(Math.min(20 * (clientWidth / docWidth), 11.2), 8.55) * 5 + 'px';
-
-        return refreshRem;
-    })();
-
-    /* 添加倍屏标识，安卓为1 */
-    docEl.setAttribute('data-dpr', window.navigator.appVersion.match(/iphone/gi) ? window.devicePixelRatio : 1);
-
-    if (/iP(hone|od|ad)/.test(window.navigator.userAgent)) {
-        /* 添加IOS标识 */
-        doc.documentElement.classList.add('ios');
-        /* IOS8以上给html添加hairline样式，以便特殊处理 */
-        if (parseInt(window.navigator.appVersion.match(/OS (\d+)_(\d+)_?(\d+)?/)[1], 10) >= 8)
-            doc.documentElement.classList.add('hairline');
+  //根据分辨率调整全局字体大小
+  function setBodyFontSize() {
+    // html已完成加载，则立即调整字体大小，否则等待html加载完成再调整字体大小
+    if (document.body) {
+      document.body.style.fontSize = 12 * dpr + "px";
+    } else {
+      // 监听DOMContentLoaded 事件——当初始的 HTML 文档被完全加载和解析完成之后触发，无需等待样式表
+      document.addEventListener("DOMContentLoaded", setBodyFontSize);
     }
+  }
+  setBodyFontSize();
 
-    if (!doc.addEventListener) return;
-    window.addEventListener(resizeEvt, recalc, false);
-    doc.addEventListener('DOMContentLoaded', recalc, false);
+  // 根据屏幕宽度，重置1rem的长度为当前屏幕宽度的1/10
+  function setRemUnit() {
+    var rem = docEl.clientWidth / 10;
+    // 1rem的值永远为根元素的字体大小，所以此处通过调整全局字体大小来重置rem
+    docEl.style.fontSize = rem + "px";
+  }
 
-}(window);
+  setRemUnit();
+
+  // 监听resize事件——屏幕大小发生变化时触发
+  window.addEventListener("resize", setRemUnit);
+  // 监听pageshow事件——显示页面时触发
+  window.addEventListener("pageshow", function (e) {
+    // 若是浏览器中点击后退时显示页面，则重置rem
+    if (e.persisted) {
+      setRemUnit();
+    }
+  });
+
+  // 检测是否支持0.5px
+  if (dpr >= 2) {
+    var fakeBody = document.createElement("body");
+    var testElement = document.createElement("div");
+    testElement.style.border = ".5px solid transparent";
+    fakeBody.appendChild(testElement);
+    docEl.appendChild(fakeBody);
+    if (testElement.offsetHeight === 1) {
+      docEl.classList.add("hairlines");
+    }
+    docEl.removeChild(fakeBody);
+  }
+})(window, document);
